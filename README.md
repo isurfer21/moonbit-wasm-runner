@@ -1,7 +1,7 @@
 # moonbit-wasm-runner
 
-A lightweight CLI tool to run **MoonBit‑generated WebAssembly modules** using [Wasmtime](https://wasmtime.dev).  
-It supports interactive prompts, custom function invocation, argument passing (integers, floats, strings), and verbose logging for debugging.
+A flexible CLI tool to run **MoonBit‑generated WebAssembly modules** using [Wasmtime](https://wasmtime.dev).  
+It supports interactive prompts, custom function invocation, argument passing with **type annotations or autodetection**, and verbose logging for debugging.
 
 ---
 
@@ -9,9 +9,13 @@ It supports interactive prompts, custom function invocation, argument passing (i
 - Run `.wasm` files compiled from MoonBit or other sources.
 - Provide the Wasm file path via CLI or interactively when omitted.
 - Call a specific exported function with `--func` (default: `_start`).
-- Pass arbitrary arguments with `--args` (supports `i32`, `f64`, and strings).
-- Verbose logging with `--verbose` for debugging and inspection.
-- Built on **Wasmtime v39** and **clap v4** for modern Rust ergonomics.
+- Pass arguments with `--args`:
+  - **Explicit type annotations**: `i32:5,f64:3.14,string:hello,bool:true`
+  - **Autodetection**: `5,3.14,hello,true,false`
+- Boolean support:
+  - Autodetection: `"true"` / `"false"` → booleans; `"1"` / `"0"` → integers
+  - Explicit: `bool:true`, `bool:false`, `bool:1`, `bool:0`
+- Verbose logging with `--verbose` for detailed execution info.
 
 ---
 
@@ -43,10 +47,10 @@ moonbit-wasm-runner <wasm_file_path> [OPTIONS]
 ### Options
 | Flag / Option | Description |
 |---------------|-------------|
-| `<wasm_file_path>` | Path to the `.wasm` file to execute. If omitted, you’ll be prompted interactively. |
+| `<wasm_file_path>` | Path to the `.wasm` file to execute. If omitted, prompts interactively. |
 | `-f, --func <name>` | Name of the exported function to run (default: `_start`). |
-| `-a, --args <list>` | Comma‑separated list of arguments (supports integers, floats, and strings). |
-| `-v, --verbose` | Enable verbose logging (shows args, results, and execution details). |
+| `-a, --args <list>` | Comma‑separated list of arguments. Supports explicit type annotations or autodetection. |
+| `-v, --verbose` | Enable verbose logging. |
 | `-h, --help` | Show help menu. |
 | `-V, --version` | Show version. |
 
@@ -56,7 +60,7 @@ moonbit-wasm-runner <wasm_file_path> [OPTIONS]
 
 ### Run default `_start` function
 ```bash
-moonbit-wasm-runner ./moonbit/target/wasm/release/build/main/main.wasm
+moonbit-wasm-runner ./main.wasm
 ```
 
 ### Run a specific function
@@ -64,19 +68,28 @@ moonbit-wasm-runner ./moonbit/target/wasm/release/build/main/main.wasm
 moonbit-wasm-runner ./main.wasm --func add
 ```
 
-### Pass integer arguments
+### Pass integers
 ```bash
 moonbit-wasm-runner ./main.wasm --func add --args 5,10
+moonbit-wasm-runner ./main.wasm --func add --args i32:5,i32:10
 ```
 
 ### Pass floats
 ```bash
 moonbit-wasm-runner ./main.wasm --func scale --args 3.14,2.71
+moonbit-wasm-runner ./main.wasm --func scale --args f64:3.14,f64:2.71
 ```
 
 ### Pass strings
 ```bash
 moonbit-wasm-runner ./main.wasm --func concat --args hello,world
+moonbit-wasm-runner ./main.wasm --func concat --args string:hello,string:world
+```
+
+### Pass booleans
+```bash
+moonbit-wasm-runner ./main.wasm --func toggle --args true,false
+moonbit-wasm-runner ./main.wasm --func toggle --args bool:true,bool:false
 ```
 
 ### Verbose mode
@@ -86,19 +99,16 @@ moonbit-wasm-runner ./main.wasm --func add --args 42,7 --verbose
 
 ---
 
-## 🛠 Development Notes
+## 📖 Supported Types
 
-- **Arguments parsing**:  
-  - Integers → `Val::I32`  
-  - Floats → `Val::F64` (bit‑encoded)  
-  - Strings → `Val::ExternRef`  
-
-- **Dynamic calling**: Uses `Func::call` with runtime type inspection, so you’re not locked into fixed signatures.
-
-- **Extensibility**:  
-  - Add more type parsers (e.g., `i64`, `f32`).  
-  - Support explicit type annotations (`i32:5,f64:3.14,string:hello`).  
-  - Extend logging with execution time or memory usage.
+| Annotation | Example | Autodetection |
+|------------|---------|---------------|
+| `i32`      | `i32:5` | `5` |
+| `i64`      | `i64:42` | — |
+| `f32`      | `f32:3.14` | — |
+| `f64`      | `f64:2.71` | `3.14` |
+| `string`   | `string:hello` | `hello` |
+| `bool`     | `bool:true`, `bool:false`, `bool:1`, `bool:0` | `true`, `false` |
 
 ---
 

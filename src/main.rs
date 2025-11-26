@@ -6,7 +6,7 @@ use wasmtime::component::__internal::anyhow;
 fn main() -> anyhow::Result<()> {
     // Define CLI interface
     let matches = Command::new("moonbit_wasm_runner")
-        .version("1.1.0")
+        .version("1.2.0")
         .author("Abhishek Kumar <abhishek.kumar.thakur@zohomail.in>")
         .about("Run a Moonbit's WebAssembly module using Wasmtime")
         .arg(
@@ -87,8 +87,20 @@ fn main() -> anyhow::Result<()> {
                         ExternRef::new(&mut store, val.to_string())
                             .expect("failed to create externref")
                     )),
+                    "bool" => {
+                        let b = match val.to_lowercase().as_str() {
+                            "true" | "1" => 1,
+                            "false" | "0" => 0,
+                            _ => panic!("invalid bool value: {}", val),
+                        };
+                        Val::I32(b)
+                    }
                     _ => panic!("Unknown type annotation: {}", ty),
                 }
+            } else if x.eq_ignore_ascii_case("true") {
+                Val::I32(1)
+            } else if x.eq_ignore_ascii_case("false") {
+                Val::I32(0)
             } else if let Ok(i) = x.parse::<i32>() {
                 Val::I32(i)
             } else if let Ok(f) = x.parse::<f64>() {
