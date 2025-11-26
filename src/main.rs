@@ -6,7 +6,7 @@ use wasmtime::component::__internal::anyhow;
 fn main() -> anyhow::Result<()> {
     // Define CLI interface
     let matches = Command::new("moonbit_wasm_runner")
-        .version("1.0.0")
+        .version("1.1.0")
         .author("Abhishek Kumar <abhishek.kumar.thakur@zohomail.in>")
         .about("Run a Moonbit's WebAssembly module using Wasmtime")
         .arg(
@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
             Arg::new("args")
                 .short('a')
                 .long("args")
-                .help("Comma-separated list of arguments (int, float, or string)")
+                .help("Comma-separated list of arguments (supports explicit type annotations or autodetection)")
                 .num_args(1),
         )
         .arg(
@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
     // Function name (default: _start)
     let func_name = matches.get_one::<String>("func").map(|s| s.as_str()).unwrap_or("_start");
 
-    // Step 1: collect raw args as strings first (store needed later for externrefs)
+    // Step 1: collect raw args as strings first
     let raw_args: Vec<String> = matches
         .get_one::<String>("args")
         .map(|s| s.split(',').map(|x| x.trim().to_string()).collect())
@@ -77,13 +77,26 @@ fn main() -> anyhow::Result<()> {
     let args: Vec<Val> = raw_args
         .iter()
         .map(|x| {
-            if let Ok(i) = x.parse::<i32>() {
+            if let Some((ty, val)) = x.split_once(':') {
+                match ty {
+                    "i32" => Val::I32(val.parse::<i32>().expect("invalid i32")),
+                    "i64" => Val::I64(val.parse::<i64>().expect("invalid i64")),
+                    "f32" => Val::F32(val.parse::<f32>().expect("invalid f32").to_bits()),
+                    "f64" => Val::F64(val.parse::<f64>().expect("invalid f64").to_bits()),
+                    "string" => Val::ExternRef(Some(
+                        ExternRef::new(&mut store, val.to_string())
+                            .expect("failed to create externref")
+                    )),
+                    _ => panic!("Unknown type annotation: {}", ty),
+                }
+            } else if let Ok(i) = x.parse::<i32>() {
                 Val::I32(i)
             } else if let Ok(f) = x.parse::<f64>() {
                 Val::F64(f.to_bits())
             } else {
                 Val::ExternRef(Some(
-                    ExternRef::new(&mut store, x.clone()).expect("failed to create externref")
+                    ExternRef::new(&mut store, x.clone())
+                        .expect("failed to create externref")
                 ))
             }
         })
