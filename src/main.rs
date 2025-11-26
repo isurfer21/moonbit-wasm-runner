@@ -6,7 +6,7 @@ use wasmtime::component::__internal::anyhow;
 fn main() -> anyhow::Result<()> {
     // Define CLI interface
     let matches = Command::new("moonbit_wasm_runner")
-        .version("2.1")
+        .version("1.0.0")
         .author("Abhishek Kumar <abhishek.kumar.thakur@zohomail.in>")
         .about("Run a Moonbit's WebAssembly module using Wasmtime")
         .arg(
